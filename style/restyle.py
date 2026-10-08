@@ -260,6 +260,8 @@ for e in ref_body:
     if not has_drawing(e):
         ref_front.append(copy.deepcopy(e))
 front_done = False
+had_cover = False
+FA2EN = str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789")
 
 
 def is_chart(p):
@@ -287,7 +289,7 @@ while i < len(elements):
     p, t = el, txt(el).strip()
     if state is None and not STEM.match(t):                             # cover section before the first question
         if has_drawing(p):
-            out.append(p)
+            out.append(p); had_cover = True
         elif not front_done:
             out.extend(ref_front); front_done = True
         continue
@@ -295,6 +297,10 @@ while i < len(elements):
     fill = ppr.find(q("shd")).get(q("fill")) if ppr is not None and ppr.find(q("shd")) is not None else None
     jc = ppr.find(q("jc")).get(q("val")) if ppr is not None and ppr.find(q("jc")) is not None else None
     m = STEM.match(t)
+    if m and int(m.group(1).translate(FA2EN)) != (qnum or 0) + 1 and qnum is not None:
+        m = None                     # «۱- …» lines inside an explanation are not new questions
+    if m and state is None and had_cover and not front_done:
+        out.extend(ref_front); front_done = True                        # notice box after the cover pages
     # pictures (anchored or inline, alone in their paragraph)
     if has_drawing(p) and state == "a" and is_chart(p) and not t:
         runs = [r for r in p.findall(q("r")) if r.find(q("drawing")) is not None]
@@ -444,6 +450,12 @@ for rel in list(rels.getroot()):
         hdr_target = rel.get("Target")
     if rel.get("Type").endswith("/footer"):
         rels.getroot().remove(rel)
+hdr_id = None
+if hdr_target is None:                                                  # source without a header part
+    hdr_target, hdr_id = "header_design.xml", "rIdHeaderDesign"
+    hr = etree.SubElement(rels.getroot(), "{%s}Relationship" % PKG)
+    hr.set("Id", hdr_id); hr.set("Target", hdr_target)
+    hr.set("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header")
 shutil.copy(os.path.join(REF, "word", "header1.xml"), os.path.join(SRC, "word", hdr_target))
 shutil.copy(os.path.join(REF, "word", "_rels", "header1.xml.rels"),
             os.path.join(SRC, "word", "_rels", os.path.basename(hdr_target) + ".rels"))
@@ -457,13 +469,16 @@ rels.write(rels_path, xml_declaration=True, encoding="UTF-8", standalone=True)
 sect = body.find(q("sectPr"))
 ref_sect = etree.parse(os.path.join(REF, "word", "document.xml")).getroot().find(q("body")).find(q("sectPr"))
 new_sect = copy.deepcopy(ref_sect)
-new_sect.find(q("headerReference")).set("{%s}id" % R, sect.find(q("headerReference")).get("{%s}id" % R))
-if not front_done:                       # no cover pages: number from 1 (with covers keep the reference's «3»)
+new_sect.find(q("headerReference")).set("{%s}id" % R, hdr_id or sect.find(q("headerReference")).get("{%s}id" % R))
+if not front_done and not had_cover:     # no cover pages: number from 1 (with covers keep the reference's «3»)
     new_sect.find(q("pgNumType")).set(q("start"), "1")
 body.replace(sect, new_sect)
 
 ct_path = os.path.join(SRC, "[Content_Types].xml")
 ct = open(ct_path, encoding="utf-8").read()
+if hdr_target == "header_design.xml" and "header_design.xml" not in ct:
+    ct = ct.replace("</Types>", '<Override PartName="/word/header_design.xml" ContentType="application/'
+                    'vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/></Types>')
 if "footer_design.xml" not in ct:
     ct = ct.replace("</Types>", '<Override PartName="/word/footer_design.xml" ContentType="application/'
                     'vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>')
