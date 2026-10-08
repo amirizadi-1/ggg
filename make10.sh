@@ -20,8 +20,8 @@ unzip -q "$WORK/key.docx" -d "$WORK/key"
 unzip -q "$HERE/Faraz11_Styled-2.docx" -d "$WORK/ref"
 node "$HERE/style/make_background.js" "$WORK/ref/word/media/page_design.png" "$WORK/bg.png" "آزمون زیست شناسی دهم"
 python3 "$HERE/style/restyle.py" "$WORK/key" "$WORK/ref" "$WORK/bg.png" - "$WORK/styled.docx"
-# cover: «دفترچهٔ سؤال و پاسخ» instead of «دفترچهٔ سؤالات», and no second cover page
+# cover: «دفترچهٔ سؤال و پاسخ» instead of «دفترچهٔ سؤالات»; page 2: the team credits picture
 node "$HERE/style/cover_subtitle.js" "$WORK/src/word/media/image1.jpg" "$WORK/cover.jpg" "دفترچهٔ سؤال و پاسخ"
-python3 "$HERE/style/cover10.py" "$WORK/styled.docx" "$WORK/cover.jpg" "$OUT/Faraz10_Styled.docx"
+python3 "$HERE/style/cover10.py" "$WORK/styled.docx" "$WORK/cover.jpg" "$OUT/Faraz10_Styled.docx" "$HERE/IMG_20261008_144448_050.jpg"
 soffice --headless --convert-to pdf --outdir "$OUT" "$OUT/Faraz10_Styled.docx" >/dev/null 2>&1
 ls -la "$OUT"
