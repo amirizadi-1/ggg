@@ -59,6 +59,10 @@ for key in DELETE:
     log.append("[%s] (deleted)\n  - %s" % (key, text_of(p)))
     p.getparent().remove(p)
 
+# paragraphs typed in the wrong place
+for key, before in getattr(CFG, "MOVE_BEFORE", {}).items():
+    get(before).addprevious(get(key))
+
 # answer paragraphs that sit inside a question table → move them below the table
 moved = []
 for qn, (tbl, first) in MOVES.items():
@@ -207,6 +211,13 @@ for n in sorted(Q):
 
 tree.write(doc_path, xml_declaration=True, encoding="UTF-8", standalone=True)
 rels.write(rels_path, xml_declaration=True, encoding="UTF-8", standalone=True)
+
+# the chart images are PNG: make sure the package declares that type
+ct_path = os.path.join(SRC_DIR, "[Content_Types].xml")
+ct = open(ct_path, encoding="utf-8").read()
+if not re.search(r'<Default Extension="png"', ct, re.I):
+    ct = ct.replace("<Default ", '<Default Extension="png" ContentType="image/png"/><Default ', 1)
+    open(ct_path, "w", encoding="utf-8").write(ct)
 
 # ------------------------------------------------------------------ zip
 if os.path.exists(OUT):

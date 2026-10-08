@@ -5,6 +5,7 @@ W = 9600          # width of data tables (dxa)
 DW = 9400         # max width of diagrams
 SYM_FONT = "Segoe UI Symbol"
 ARROW_FONT = "Arial"
+FA_FONT = "B Nazanin"   # Persian font of the added text
 
 # box palette: fill, border
 PAL = {
@@ -23,6 +24,8 @@ def run(text, b=False, sz=22, color=None, font=None, rtl=True):
     rpr = ""
     if font:
         rpr += '<w:rFonts w:ascii="%s" w:hAnsi="%s" w:cs="%s"/>' % (font, font, font)
+    else:
+        rpr += '<w:rFonts w:cs="%s" w:hint="cs"/>' % FA_FONT
     if b:
         rpr += "<w:b/><w:bCs/>"
     if color:
