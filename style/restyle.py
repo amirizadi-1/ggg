@@ -1,6 +1,9 @@
-# Rebuilds «سند (50) - تکمیل_شده.docx» so that every paragraph, table, picture and page element uses the
-# exact formatting of the reference «Faraz11_Styled-2.docx» (fonts, sizes, spacing, colours, header/footer).
-# usage: python3 rebuild50.py <unzipped source> <unzipped reference> <background.png> <charts dir> <out.docx>
+# Restyles an answer key so that every paragraph, table, picture and page element uses the exact formatting
+# of the reference «Faraz11_Styled-2.docx» (fonts, sizes, spacing, colours, header/footer).
+# Works on «سند (50)» (charts are drawn from its table diagrams) and on keys made by buildkey.py
+# (charts already present; pass "-" as charts dir). A cover section before the first question keeps its
+# pictures, and its notice box is taken from the reference.
+# usage: python3 restyle.py <unzipped source> <unzipped reference> <background.png> <charts dir|-> <out.docx>
 import copy, os, re, shutil, struct, sys, zipfile
 from lxml import etree
 
@@ -107,6 +110,7 @@ def restyle_runs(p, bold=None, color=NAVY, sz=None, keep_colors=(), keep_sym=Tru
         old_color = rpr.find(q("color"))
         oc = old_color.get(q("val")) if old_color is not None else None
         was_b = rpr.find(q("b")) is not None
+        was_u = copy.deepcopy(rpr.find(q("u")))
         is_rtl = rpr.find(q("rtl")) is not None or bool(re.search("[؀-ۿ]", "".join(t.text or "" for t in r.iter(q("t")))))
         for c in list(rpr):
             rpr.remove(c)
@@ -122,6 +126,8 @@ def restyle_runs(p, bold=None, color=NAVY, sz=None, keep_colors=(), keep_sym=Tru
         if sz:
             etree.SubElement(rpr, q("sz")).set(q("val"), str(sz))
             etree.SubElement(rpr, q("szCs")).set(q("val"), str(sz))
+        if was_u is not None:
+            rpr.append(was_u)
         if is_rtl and not sym:
             etree.SubElement(rpr, q("rtl"))
         for t in r.findall(q("lastRenderedPageBreak")):
@@ -237,6 +243,7 @@ def to_inline(anchor):
 
 # ------------------------------------------------------------------ walk the body
 STEM = re.compile(r"^([۰-۹0-9]+)\s*-")
+STEM_RE = STEM
 OPTION = re.compile(r"^[۰-۹0-9]\s*\)")
 HEADINGS = ("بررسی گزینه‌ها", "بررسی موارد")
 EXPL_HEADS = re.compile(r"^(بررسی (موارد|سایر|همهٔ|گزینهٔ)[^:]*:)\s*$")
@@ -244,6 +251,18 @@ LABEL = re.compile(r"^((صورت )?سؤال چی می‌گه؟|بررسی گزی
 
 elements = list(body)
 qnum, state, first_stem = None, None, True
+ref_body = list(etree.parse(os.path.join(REF, "word", "document.xml")).getroot().find(q("body")))
+ref_front = []
+for e in ref_body:
+    if e.tag == q("p") and STEM_RE.match(txt(e).strip()):
+        break
+    if not has_drawing(e):
+        ref_front.append(copy.deepcopy(e))
+front_done = False
+
+
+def is_chart(p):
+    return any((d.get("name") or "").startswith("Chart") for d in p.iter("{%s}docPr" % WP))
 i = 0
 pending_charts = None
 out = []                                # (element) in final order
@@ -252,6 +271,10 @@ while i < len(elements):
     i += 1
     if el.tag == q("sectPr"):
         out.append(el); continue
+    if el.tag == q("tbl") and state is None:
+        if not front_done:
+            out.extend(ref_front); front_done = True
+        continue
     if el.tag == q("tbl"):
         if is_diagram_table(el):
             continue                                          # replaced by chart images
@@ -261,11 +284,28 @@ while i < len(elements):
             restyle_question_table(el)
         out.append(el); continue
     p, t = el, txt(el).strip()
+    if state is None and not STEM.match(t):                             # cover section before the first question
+        if has_drawing(p):
+            out.append(p)
+        elif not front_done:
+            out.extend(ref_front); front_done = True
+        continue
     ppr = p.find(q("pPr"))
     fill = ppr.find(q("shd")).get(q("fill")) if ppr is not None and ppr.find(q("shd")) is not None else None
     jc = ppr.find(q("jc")).get(q("val")) if ppr is not None and ppr.find(q("jc")) is not None else None
     m = STEM.match(t)
     # pictures (anchored or inline, alone in their paragraph)
+    if has_drawing(p) and state == "a" and is_chart(p) and not t:
+        runs = [r for r in p.findall(q("r")) if r.find(q("drawing")) is not None]
+        cp = new_p("chart")
+        for r in runs:
+            rpr = r.find(q("rPr"))
+            if rpr is not None:
+                r.remove(rpr)
+            r.insert(0, X('<w:r><w:rPr><w:color w:val="282360"/></w:rPr></w:r>')[0])
+            cp.append(r)
+        out.append(cp)
+        continue
     if has_drawing(p) and state == "a":
         for a in list(p.iter("{%s}anchor" % WP)):
             if a.get("behindDoc") != "1":
@@ -318,13 +358,15 @@ while i < len(elements):
         out.append(new_p("heading", '<w:r><w:rPr><w:b/><w:bCs/><w:color w:val="282360"/><w:sz w:val="24"/>'
                                     '<w:szCs w:val="24"/><w:rtl/></w:rPr><w:t xml:space="preserve">%s</w:t></w:r>' % t))
         continue
-    if t in ("جدول جمع‌بندی", "نمودار / فلوچارت"):
+    t_head = re.sub(r"^[۱۲]\s+", "", t)
+    if t_head in ("جدول جمع‌بندی", "نمودار / فلوچارت"):
+        t = t_head
         num = "۱" if t.startswith("جدول") else "۲"
         out.append(new_p("heading", '<w:r><w:rPr><w:b/><w:bCs/><w:color w:val="C08A00"/><w:sz w:val="22"/>'
                                     '<w:szCs w:val="22"/><w:rtl/></w:rPr><w:t xml:space="preserve">%s  </w:t></w:r>'
                                     '<w:r><w:rPr><w:b/><w:bCs/><w:color w:val="282360"/><w:sz w:val="24"/>'
                                     '<w:szCs w:val="24"/><w:rtl/></w:rPr><w:t xml:space="preserve">%s</w:t></w:r>' % (num, t)))
-        if num == "۲":                                                     # charts + skip the drawn diagram
+        if num == "۲" and CHARTS != "-":                                   # charts + skip the drawn diagram
             k = 1
             while os.path.exists(os.path.join(CHARTS, "q%02d_%d.png" % (qnum, k))):
                 out.append(chart_para(os.path.join(CHARTS, "q%02d_%d.png" % (qnum, k))))
@@ -415,7 +457,8 @@ sect = body.find(q("sectPr"))
 ref_sect = etree.parse(os.path.join(REF, "word", "document.xml")).getroot().find(q("body")).find(q("sectPr"))
 new_sect = copy.deepcopy(ref_sect)
 new_sect.find(q("headerReference")).set("{%s}id" % R, sect.find(q("headerReference")).get("{%s}id" % R))
-new_sect.find(q("pgNumType")).set(q("start"), "1")
+if not front_done:                       # no cover pages: number from 1 (with covers keep the reference's «3»)
+    new_sect.find(q("pgNumType")).set(q("start"), "1")
 body.replace(sect, new_sect)
 
 ct_path = os.path.join(SRC, "[Content_Types].xml")
