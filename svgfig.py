@@ -3,6 +3,7 @@ import math
 from xml.sax.saxutils import escape
 
 FONT = "Vazirmatn"
+BG = "#fff"                     # chart background (the styled answer keys use the page colour #E7F2FE)
 FA_DIGITS = str.maketrans("0123456789-", "۰۱۲۳۴۵۶۷۸۹−")
 
 # fill, stroke, text
@@ -139,8 +140,8 @@ class Fig:
             defs.append('<marker id="%s_s" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" '
                         'orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="%s"/></marker>' % (mid, color))
         return ('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d" '
-                'font-family="%s"><rect width="100%%" height="100%%" fill="#fff"/><defs>%s</defs>%s</svg>'
-                % (self.w, self.h, self.w, self.h, FONT, "".join(defs), "".join(self.els)))
+                'font-family="%s"><rect width="100%%" height="100%%" fill="%s"/><defs>%s</defs>%s</svg>'
+                % (self.w, self.h, self.w, self.h, FONT, BG, "".join(defs), "".join(self.els)))
 
 
 def tw(s, size):
