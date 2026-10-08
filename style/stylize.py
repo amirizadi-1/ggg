@@ -1,6 +1,7 @@
-# Applies the «Faraz11_Styled» look to an answer-key .docx:
-#   page background + header band + footer page number, navy text, question boxes,
-#   navy answer bars, gold tables with banded rows, inline centered pictures.
+# Applies the «Faraz11_Styled-2» look to an answer-key .docx:
+#   page background + header band + footer page number, navy text, navy answer bars,
+#   gold tables with banded rows, inline centered pictures; questions keep their plain look
+#   and each question starts on a new page.
 # usage: python3 stylize.py <unzipped source dir> <styled reference dir> <background.png> <out.docx>
 import copy, os, re, shutil, sys, zipfile
 from lxml import etree
@@ -214,12 +215,8 @@ for el in list(body):
             recolor(el)
         elif is_diagram(el):
             recolor(el)
-        elif state == "q":
-            gold_grid(el)
-            for tc in el.iter(q("tc")):
-                cell_fill(tc, BOX)
-            recolor(el)
-            last_box = None
+        elif state == "q":                                                  # question tables stay plain
+            pass
         else:
             recolor(el)
         continue
@@ -239,18 +236,17 @@ for el in list(body):
         state = "a"
         continue
     if not t and not has_drawing(p):                                        # empty spacer
-        spacing(p, before=0, after=20, line=20, lineRule="exact")
+        if state != "q":
+            spacing(p, before=0, after=20, line=20, lineRule="exact")
         continue
     if has_drawing(p) and not t:                                            # picture
-        recolor(p)
+        if state != "q":
+            recolor(p)
         continue
-    if STEM.match(t):                                                       # question stem
+    if STEM.match(t):                                                       # question stem: new page
+        if state is not None:
+            pchild(ppr, "pageBreakBefore")
         state = "q"
-        shade(ppr, BOX)
-        box_borders(p)
-        spacing(p, before=80, after=80, line=280, lineRule="auto")
-        pchild(ppr, "keepNext")
-        recolor(p)
         continue
     if t.startswith("پاسخ"):                                                # answer bar
         state = "a"
@@ -259,11 +255,7 @@ for el in list(body):
         pchild(ppr, "keepNext")
         recolor(p, "FFFFFF")
         continue
-    if state == "q":                                                        # options / items of the question
-        shade(ppr, BOX)
-        spacing(p, after=65)
-        pchild(ppr, "keepNext")
-        recolor(p)
+    if state == "q":                                                        # options / items: unchanged
         continue
     spacing(p, after=65)                                                    # explanation, headings, sources …
     if t.startswith(("بررسی", "جدول جمع", "نمودار")) and len(t) < 40:
