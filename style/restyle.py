@@ -251,6 +251,7 @@ LABEL = re.compile(r"^((صورت )?سؤال چی می‌گه؟|بررسی گزی
 
 elements = list(body)
 qnum, state, first_stem = None, None, True
+HAS_ANSWERS = any(e.tag == q("p") and txt(e).strip().startswith("پاسخ") for e in body)
 ref_body = list(etree.parse(os.path.join(REF, "word", "document.xml")).getroot().find(q("body")))
 ref_front = []
 for e in ref_body:
@@ -319,7 +320,7 @@ while i < len(elements):
             continue
     if m and not (state == "q" and not first_stem and False):
         qnum = int(m.group(1).translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789")))
-        set_ppr(p, "stem", pb="" if first_stem else "<w:pageBreakBefore/>")
+        set_ppr(p, "stem", pb="" if first_stem or not HAS_ANSWERS else "<w:pageBreakBefore/>")
         restyle_runs(p, bold=True, color=None)
         first_stem, state = False, "q"
         out.append(p); continue

@@ -1,6 +1,6 @@
 # Cover tweaks for the 10th-grade key: new first-page cover picture, and the second cover page replaced
 # by a full-page picture (or removed when no picture is given).
-# usage: python3 cover10.py <in.docx> <new cover.jpg> <out.docx> [page-2 picture.jpg]
+# usage: python3 cover10.py <in.docx> <new cover.jpg|-> <out.docx> [page-2 picture.jpg]
 import os, re, sys, zipfile
 from lxml import etree
 
@@ -54,7 +54,7 @@ with zipfile.ZipFile(OUT, "w", zipfile.ZIP_DEFLATED) as zout:
             data = etree.tostring(rels, xml_declaration=True, encoding="UTF-8", standalone=True)
         elif item.filename == "[Content_Types].xml":
             data = ct.encode("utf-8")
-        elif item.filename == cover1:
+        elif item.filename == cover1 and COVER != "-":
             data = open(COVER, "rb").read()
         zout.writestr(item, data)
     if PAGE2:
