@@ -11,6 +11,6 @@ mkdir -p "$OUT"
 unzip -q "$HERE/faraz11zamanifinal.docx" -d "$WORK/src"
 python3 "$HERE/charts11.py" "$WORK/charts" >/dev/null
 node "$HERE/render_charts.js" "$WORK/charts/manifest.json" >/dev/null
-python3 "$HERE/build11.py" "$WORK/src" "$OUT/Faraz11_Pasokhname_Kamel.docx" "$WORK/charts" "$OUT/changes.log"
+cd "$HERE" && python3 "$HERE/buildkey.py" fixes11 "$WORK/src" "$OUT/Faraz11_Pasokhname_Kamel.docx" "$WORK/charts" "$OUT/changes.log"
 soffice --headless --convert-to pdf --outdir "$OUT" "$OUT/Faraz11_Pasokhname_Kamel.docx" >/dev/null 2>&1
 ls -la "$OUT"

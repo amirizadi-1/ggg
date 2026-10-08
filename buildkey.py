@@ -1,19 +1,20 @@
-# Builds the completed answer key for the 11th-grade exam (faraz11zamanifinal.docx):
+# Builds a completed answer key from a source .docx:
 # fixes spelling/punctuation, then adds to every question
 #   1) an option-review table right after the answer line,
-#   2) a summary table and 3) a chart section (PNG charts from charts11.py) after the explanation.
-# usage: python3 build11.py <unzipped source docx dir> <out.docx> <charts dir> [change log]
-import copy, os, re, struct, sys, zipfile
+#   2) a summary table and 3) a chart section (PNG charts) after the explanation.
+# usage: python3 buildkey.py <config module> <unzipped source docx dir> <out.docx> <charts dir> [change log]
+# The config module (fixes11.py, fixes51.py) provides TXT, DELETE, ANSWER, END, MOVES and Q.
+import copy, importlib, os, re, struct, sys, zipfile
 from lxml import etree
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dsl
 from docxtext import q, text_of, retext, ensure_rtl, norm, make_rtl, FA
-from fixes11 import TXT, DELETE
-from content11 import Q
+CFG = importlib.import_module(sys.argv[1])
+TXT, DELETE, ANSWER, END, MOVES, Q = CFG.TXT, CFG.DELETE, CFG.ANSWER, CFG.END, CFG.MOVES, CFG.Q
 
-SRC_DIR, OUT, CHART_DIR = sys.argv[1], sys.argv[2], sys.argv[3]
-LOG = sys.argv[4] if len(sys.argv) > 4 else None
+SRC_DIR, OUT, CHART_DIR = sys.argv[2], sys.argv[3], sys.argv[4]
+LOG = sys.argv[5] if len(sys.argv) > 5 else None
 RNS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 PKG = "http://schemas.openxmlformats.org/package/2006/relationships"
 
@@ -30,9 +31,6 @@ def E(xml):
 
 
 # ------------------------------------------------------------------ addressing
-Q13_TABLE = 181
-
-
 def get(key):
     if key.startswith("T"):
         t, k = key[1:].split(":")
@@ -41,13 +39,6 @@ def get(key):
     return orig[int(key)]
 
 
-# answer line (option table goes right after it) and last paragraph of each question block
-ANSWER = {1: "12", 2: "25", 3: "37", 4: "55", 5: "72", 6: "88", 7: "103", 8: "118", 9: "132", 10: "147",
-          11: "161", 12: "175", 13: "T181:4", 14: "190", 15: "209", 16: "225", 17: "237", 18: "261",
-          19: "277", 20: "291"}
-END = {1: "21", 2: "29", 3: "48", 4: "65", 5: "82", 6: "96", 7: "110", 8: "126", 9: "140", 10: "154",
-       11: "170", 12: "179", 13: None, 14: "201", 15: "218", 16: "232", 17: "253", 18: "271", 19: "285",
-       20: "299"}
 # keep the anchors before anything moves
 ANS_EL = {n: get(k) for n, k in ANSWER.items()}
 END_EL = {n: (get(k) if k else None) for n, k in END.items()}
@@ -68,18 +59,22 @@ for key in DELETE:
     log.append("[%s] (deleted)\n  - %s" % (key, text_of(p)))
     p.getparent().remove(p)
 
-# Q13: answer paragraphs sit inside the question table → move them below the table
-tc = orig[Q13_TABLE].findall(".//" + q("tc"))[0]
-anchor = orig[Q13_TABLE]
+# answer paragraphs that sit inside a question table → move them below the table
 moved = []
-for p in tc.findall(q("p"))[4:]:
-    tc.remove(p)
-    if not text_of(p).strip():
-        continue
-    anchor.addnext(p)
-    anchor = p
-    moved.append(p)
-END_EL[13] = moved[-1]
+for qn, (tbl, first) in MOVES.items():
+    tc = orig[tbl].findall(".//" + q("tc"))[0]
+    anchor = orig[tbl]
+    mine = []
+    for p in tc.findall(q("p"))[first:]:
+        tc.remove(p)
+        if not text_of(p).strip():
+            continue
+        anchor.addnext(p)
+        anchor = p
+        mine.append(p)
+    moved += mine
+    if END_EL[qn] is None:
+        END_EL[qn] = mine[-1]
 
 # ------------------------------------------------------------------ 2. global rules on every paragraph
 answer_paras = set()

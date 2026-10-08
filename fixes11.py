@@ -195,3 +195,15 @@ TXT = {
 
 # paragraphs to delete (Q10: the stem was broken over two paragraphs; it is now whole in "141")
 DELETE = ["142"]
+
+# answer line of each question (the option table goes right after it) and the last paragraph of its block
+ANSWER = {1: "12", 2: "25", 3: "37", 4: "55", 5: "72", 6: "88", 7: "103", 8: "118", 9: "132", 10: "147",
+          11: "161", 12: "175", 13: "T181:4", 14: "190", 15: "209", 16: "225", 17: "237", 18: "261",
+          19: "277", 20: "291"}
+END = {1: "21", 2: "29", 3: "48", 4: "65", 5: "82", 6: "96", 7: "110", 8: "126", 9: "140", 10: "154",
+       11: "170", 12: "179", 13: None, 14: "201", 15: "218", 16: "232", 17: "253", 18: "271", 19: "285",
+       20: "299"}
+# question → (body index of a table whose first cell also holds the answer, first answer paragraph in it)
+MOVES = {13: (181, 4)}
+
+from content11 import Q  # noqa: E402
