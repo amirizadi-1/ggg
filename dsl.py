@@ -139,6 +139,13 @@ def summary_table(head, rows, ratio=None):
     for r in rows:
         cs = []
         for i, (t, w) in enumerate(zip(r, ws)):
+            if i and t[:1] in ("✔", "✘"):
+                ok = t[0] == "✔"
+                runs = [run(t[0], b=True, color="2E7D32" if ok else "C62828", font=SYM_FONT, rtl=False)]
+                if t[1:].strip():
+                    runs.append(run(" " + t[1:].strip(), sz=20))
+                cs.append(cell([para(runs, jc="center", line=264)], w))
+                continue
             cs.append(textcell(t, w, b=(i == 0), jc=None if (i == 0 or len(t) > 28) else "center",
                                fill="F3F7FC" if i == 0 else None))
         out.append(row(cs))
